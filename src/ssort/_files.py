@@ -9,12 +9,29 @@ from pathlib import Path
 
 from ssort._exceptions import UnknownEncodingError
 
+__all__ = [
+    "detect_encoding",
+    "detect_newline",
+    "escape_path",
+    "find_project_root",
+    "normalize_newlines",
+]
+
+
+_NEWLINE_RE = re.compile("(\r\n)|(\r)|(\n)")
+
+
+def current_working_dir():
+    return Path(".").resolve()
+
 
 def find_project_root(patterns):
-    if not patterns:
-        patterns = ["."]
+    all_patterns = [current_working_dir()]
 
-    paths = [Path(p).resolve() for p in patterns]
+    if patterns:
+        all_patterns.extend(patterns)
+
+    paths = [Path(p).resolve() for p in all_patterns]
     parents_and_self = [
         list(reversed(p.parents)) + ([p] if p.is_dir() else []) for p in paths
     ]
@@ -58,9 +75,6 @@ def detect_encoding(bytestring):
             exc.msg, encoding=re.match("unknown encoding: (.*)", exc.msg)[1]
         ) from exc
     return encoding
-
-
-_NEWLINE_RE = re.compile("(\r\n)|(\r)|(\n)")
 
 
 def detect_newline(text):
