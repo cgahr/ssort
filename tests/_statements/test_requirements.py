@@ -17,130 +17,118 @@ exception_group = pytest.mark.skipif(
 )
 
 
-def _parse(source):
-    source = textwrap.dedent(source)
-    root = ast.parse(source)
-    assert len(root.body) == 1
-    node = root.body[0]
-    if sys.version_info >= (3, 9):
-        print(ast.dump(node, include_attributes=True, indent=2))
-    else:
-        print(ast.dump(node, include_attributes=True))
-    return node
-
-
 def _dep_names(node):
-    return [dep.name for dep in get_requirements(node)]
+    return {dep.name for dep in get_requirements(node)}
 
 
-def test_function_def_requirements():
-    node = _parse(
+def test_function_def_requirements(parse):
+    node = parse(
         """
         def function():
             name
         """
     )
-    assert _dep_names(node) == ["name"]
+    assert _dep_names(node) == {"name"}
 
 
-def test_function_def_requirements_multiple():
-    node = _parse(
+def test_function_def_requirements_multiple(parse):
+    node = parse(
         """
         def function():
             a
             b
         """
     )
-    assert _dep_names(node) == ["a", "b"]
+    assert _dep_names(node) == {"a", "b"}
 
 
-def test_function_def_requirements_arg_shadows():
-    node = _parse(
+def test_function_def_requirements_arg_shadows(parse):
+    node = parse(
         """
         def function(arg):
             arg
         """
     )
-    assert _dep_names(node) == []
+    assert _dep_names(node) == set()
 
 
-def test_function_def_requirements_positional_only_arg_shadows():
-    node = _parse(
+def test_function_def_requirements_positional_only_arg_shadows(parse):
+    node = parse(
         """
         def function(arg, /):
             arg
         """
     )
-    assert _dep_names(node) == []
+    assert _dep_names(node) == set()
 
 
-def test_function_def_requirements_keyword_only_arg_shadows():
-    node = _parse(
+def test_function_def_requirements_keyword_only_arg_shadows(parse):
+    node = parse(
         """
         def function(*, arg):
             arg
         """
     )
-    assert _dep_names(node) == []
+    assert _dep_names(node) == set()
 
 
-def test_function_def_requirements_assignment_shadows():
-    node = _parse(
+def test_function_def_requirements_assignment_shadows(parse):
+    node = parse(
         """
         def function():
             a = b
             a
         """
     )
-    assert _dep_names(node) == ["b"]
+    assert _dep_names(node) == {"b"}
 
 
-def test_function_def_requirements_rest_shadows():
-    node = _parse(
+def test_function_def_requirements_rest_shadows(parse):
+    node = parse(
         """
         def function():
             _, *rest = value
             rest
         """
     )
-    assert _dep_names(node) == ["value"]
+    assert _dep_names(node) == {"value"}
 
 
-def test_function_def_requirements_shadowed_after():
-    node = _parse(
+def test_function_def_requirements_shadowed_after(parse):
+    node = parse(
         """
         def function():
             a
             a = b
         """
     )
-    assert _dep_names(node) == ["b"]
+    assert _dep_names(node) == {"b"}
 
 
-def test_function_def_requirements_decorator():
-    node = _parse(
+def test_function_def_requirements_decorator(parse):
+    node = parse(
         """
         @decorator(arg)
         def function():
             pass
         """
     )
-    assert _dep_names(node) == ["decorator", "arg"]
+    assert _dep_names(node) == {"decorator", "arg"}
 
 
-def test_function_def_requirements_nonlocal():
-    node = _parse(
+def test_function_def_requirements_nonlocal(parse):
+    node = parse(
         """
         def function():
             nonlocal a
             a = 4
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
-def test_function_def_requirements_nonlocal_closure():
-    node = _parse(
+def test_function_def_requirements_nonlocal_closure(parse):
+    node = parse(
         """
         def function():
             def inner():
@@ -149,11 +137,11 @@ def test_function_def_requirements_nonlocal_closure():
             return inner
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
-def test_function_def_requirements_nonlocal_closure_capture():
-    node = _parse(
+def test_function_def_requirements_nonlocal_closure_capture(parse):
+    node = parse(
         """
         def function():
             def inner():
@@ -163,22 +151,22 @@ def test_function_def_requirements_nonlocal_closure_capture():
             return inner
         """
     )
-    assert _dep_names(node) == []
+    assert _dep_names(node) == set()
 
 
-def test_function_def_requirements_global():
-    node = _parse(
+def test_function_def_requirements_global(parse):
+    node = parse(
         """
         def function():
             global a
             a = 4
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
-def test_function_def_requirements_global_closure():
-    node = _parse(
+def test_function_def_requirements_global_closure(parse):
+    node = parse(
         """
         def function():
             def inner():
@@ -187,11 +175,11 @@ def test_function_def_requirements_global_closure():
             return inner
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
-def test_function_def_requirements_global_closure_no_capture():
-    node = _parse(
+def test_function_def_requirements_global_closure_no_capture(parse):
+    node = parse(
         """
         def function():
             def inner():
@@ -201,30 +189,30 @@ def test_function_def_requirements_global_closure_no_capture():
             return inner
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
-def test_function_def_requirements_default():
-    node = _parse(
+def test_function_def_requirements_default(parse):
+    node = parse(
         """
         def function(a=b):
             pass
         """
     )
-    assert _dep_names(node) == ["b"]
+    assert _dep_names(node) == {"b"}
 
 
-def test_function_def_requirements_annotations():
-    node = _parse(
+def test_function_def_requirements_annotations(parse):
+    node = parse(
         """
         def function(a: b) -> c:
             pass
         """
     )
-    assert _dep_names(node) == ["b", "c"]
+    assert _dep_names(node) == {"b", "c"}
 
 
-def test_async_function_def_requirements():
+def test_async_function_def_requirements(parse):
     """
     ..code:: python
 
@@ -238,16 +226,16 @@ def test_async_function_def_requirements():
         )
 
     """
-    node = _parse(
+    node = parse(
         """
         async def function(arg):
             return await other(arg)
         """
     )
-    assert _dep_names(node) == ["other"]
+    assert _dep_names(node) == {"other"}
 
 
-def test_class_def_requirements():
+def test_class_def_requirements(parse):
     """
     ..code:: python
 
@@ -259,7 +247,7 @@ def test_class_def_requirements():
             expr* decorator_list,
         )
     """
-    node = _parse(
+    node = parse(
         """
         @decorator(arg)
         class A(B, C):
@@ -271,7 +259,7 @@ def test_class_def_requirements():
                 return _b
         """
     )
-    assert _dep_names(node) == [
+    assert _dep_names(node) == {
         "decorator",
         "arg",
         "B",
@@ -280,11 +268,11 @@ def test_class_def_requirements():
         "something",
         "method_decorator",
         "_b",
-    ]
+    }
 
 
-def test_class_def_builtin_requirements():
-    node = _parse(
+def test_class_def_builtin_requirements(parse):
+    node = parse(
         """
         class A:
             name = __qualname__
@@ -292,106 +280,106 @@ def test_class_def_builtin_requirements():
                 return __module__
         """
     )
-    assert _dep_names(node) == ["__module__"]
+    assert _dep_names(node) == {"__module__"}
 
 
-def test_return_requirements():
+def test_return_requirements(parse):
     """
     ..code:: python
 
         Return(expr? value)
 
     """
-    node = _parse("return a + b")
-    assert _dep_names(node) == ["a", "b"]
+    node = parse("return a + b")
+    assert _dep_names(node) == {"a", "b"}
 
 
-def test_delete_requirements():
+def test_delete_requirements(parse):
     """
     ..code:: python
 
         Delete(expr* targets)
     """
-    node = _parse("del something")
-    assert _dep_names(node) == ["something"]
+    node = parse("del something")
+    assert _dep_names(node) == {"something"}
 
 
-def test_delete_requirements_multiple():
-    node = _parse("del a, b")
-    assert _dep_names(node) == ["a", "b"]
+def test_delete_requirements_multiple(parse):
+    node = parse("del a, b")
+    assert _dep_names(node) == {"a", "b"}
 
 
-def test_delete_requirements_tuple():
-    node = _parse("del (a, b)")
-    assert _dep_names(node) == ["a", "b"]
+def test_delete_requirements_tuple(parse):
+    node = parse("del (a, b)")
+    assert _dep_names(node) == {"a", "b"}
 
 
-def test_delete_requirements_subscript():
-    node = _parse("del a[b:c]")
-    assert _dep_names(node) == ["a", "b", "c"]
+def test_delete_requirements_subscript(parse):
+    node = parse("del a[b:c]")
+    assert _dep_names(node) == {"a", "b", "c"}
 
 
-def test_delete_requirements_attribute():
-    node = _parse("del obj.attr")
-    assert _dep_names(node) == ["obj"]
+def test_delete_requirements_attribute(parse):
+    node = parse("del obj.attr")
+    assert _dep_names(node) == {"obj"}
 
 
-def test_delete_requirements_mixed():
-    node = _parse("del (a[b:c], d.f)")
-    assert _dep_names(node) == ["a", "b", "c", "d"]
+def test_delete_requirements_mixed(parse):
+    node = parse("del (a[b:c], d.f)")
+    assert _dep_names(node) == {"a", "b", "c", "d"}
 
 
-def test_assign_requirements():
+def test_assign_requirements(parse):
     """
     ..code:: python
 
         Assign(expr* targets, expr value, string? type_comment)
     """
-    node = _parse("a = b")
-    assert _dep_names(node) == ["b"]
+    node = parse("a = b")
+    assert _dep_names(node) == {"b"}
 
 
-def test_assign_attribute_requirements():
-    node = _parse("a.b = c")
-    assert _dep_names(node) == ["a", "c"]
+def test_assign_attribute_requirements(parse):
+    node = parse("a.b = c")
+    assert _dep_names(node) == {"a", "c"}
 
 
-def test_assign_star_requirements():
-    node = _parse("*a = c")
-    assert _dep_names(node) == ["c"]
+def test_assign_star_requirements(parse):
+    node = parse("*a = c")
+    assert _dep_names(node) == {"c"}
 
 
-def test_assign_star_attribute_requirements():
-    node = _parse("*a.b = c")
-    assert _dep_names(node) == ["a", "c"]
+def test_assign_star_attribute_requirements(parse):
+    node = parse("*a.b = c")
+    assert _dep_names(node) == {"a", "c"}
 
 
-def test_assign_subscript_requirements():
-    node = _parse("a[b] = c")
-    assert _dep_names(node) == ["a", "b", "c"]
+def test_assign_subscript_requirements(parse):
+    node = parse("a[b] = c")
+    assert _dep_names(node) == {"a", "b", "c"}
 
 
-def test_assign_tuple_requirements():
-    node = _parse("a, b[c], d.e, *f = g")
-    assert _dep_names(node) == ["b", "c", "d", "g"]
+def test_assign_tuple_requirements(parse):
+    node = parse("a, b[c], d.e, *f = g")
+    assert _dep_names(node) == {"b", "c", "d", "g"}
 
 
-def test_aug_assign_requirements():
+def test_aug_assign_requirements(parse):
     """
     ..code:: python
 
         AugAssign(expr target, operator op, expr value)
     """
-    node = _parse("a += b")
-    assert _dep_names(node) == ["b"]
+    node = parse("a += b")
+    assert _dep_names(node) == {"b"}
 
 
-def test_aug_assign_requirements_attribute():
-    node = _parse("a.b += c")
-    assert _dep_names(node) == ["a", "c"]
+def test_aug_assign_requirements_attribute(parse):
+    node = parse("a.b += c")
+    assert _dep_names(node) == {"a", "c"}
 
 
-def test_ann_assign_requirements():
+def test_ann_assign_requirements(parse):
     """
     ..code:: python
 
@@ -399,16 +387,16 @@ def test_ann_assign_requirements():
         AnnAssign(expr target, expr annotation, expr? value, int simple)
 
     """
-    node = _parse("a: b = c")
-    assert _dep_names(node) == ["b", "c"]
+    node = parse("a: b = c")
+    assert _dep_names(node) == {"b", "c"}
 
 
-def test_ann_assign_requirements_attribute():
-    node = _parse("a.b: c = d")
-    assert _dep_names(node) == ["a", "c", "d"]
+def test_ann_assign_requirements_attribute(parse):
+    node = parse("a.b: c = d")
+    assert _dep_names(node) == {"a", "c", "d"}
 
 
-def test_for_requirements():
+def test_for_requirements(parse):
     """
     ..code:: python
 
@@ -421,7 +409,7 @@ def test_for_requirements():
             string? type_comment,
         )
     """
-    node = _parse(
+    node = parse(
         """
         for a in b(c):
             d = a + e
@@ -429,30 +417,30 @@ def test_for_requirements():
             f = g
         """
     )
-    assert _dep_names(node) == ["b", "c", "e", "g"]
+    assert _dep_names(node) == {"b", "c", "e", "g"}
 
 
-def test_for_requirements_target_replaces_scope():
-    node = _parse(
+def test_for_requirements_target_replaces_scope(parse):
+    node = parse(
         """
         for a in a():
             pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
-def test_for_requirements_attribute():
-    node = _parse(
+def test_for_requirements_attribute(parse):
+    node = parse(
         """
         for a.b in c:
             pass
         """
     )
-    assert _dep_names(node) == ["a", "c"]
+    assert _dep_names(node) == {"a", "c"}
 
 
-def test_async_for_requirements():
+def test_async_for_requirements(parse):
     """
     ..code:: python
 
@@ -464,7 +452,7 @@ def test_async_for_requirements():
             string? type_comment,
         )
     """
-    node = _parse(
+    node = parse(
         """
         for a in b(c):
             d = a + e
@@ -472,16 +460,16 @@ def test_async_for_requirements():
             f = g
         """
     )
-    assert _dep_names(node) == ["b", "c", "e", "g"]
+    assert _dep_names(node) == {"b", "c", "e", "g"}
 
 
-def test_while_requirements():
+def test_while_requirements(parse):
     """
     ..code:: python
 
         While(expr test, stmt* body, stmt* orelse)
     """
-    node = _parse(
+    node = parse(
         """
         while predicate():
             action()
@@ -489,16 +477,16 @@ def test_while_requirements():
             cleanup()
         """
     )
-    assert _dep_names(node) == ["predicate", "action", "cleanup"]
+    assert _dep_names(node) == {"predicate", "action", "cleanup"}
 
 
-def test_if_requirements():
+def test_if_requirements(parse):
     """
     ..code:: python
 
         If(expr test, stmt* body, stmt* orelse)
     """
-    node = _parse(
+    node = parse(
         """
         if predicate():
             return subsequent()
@@ -506,47 +494,47 @@ def test_if_requirements():
             return alternate()
         """
     )
-    assert _dep_names(node) == ["predicate", "subsequent", "alternate"]
+    assert _dep_names(node) == {"predicate", "subsequent", "alternate"}
 
 
-def test_with_requirements():
+def test_with_requirements(parse):
     """
     ..code:: python
 
         With(withitem* items, stmt* body, string? type_comment)
     """
-    node = _parse(
+    node = parse(
         """
         with A() as a:
             a()
             b()
         """
     )
-    assert _dep_names(node) == ["A", "b"]
+    assert _dep_names(node) == {"A", "b"}
 
 
-def test_with_requirements_shadow():
-    node = _parse(
+def test_with_requirements_shadow(parse):
+    node = parse(
         """
         with a as a:
             pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
-def test_with_requirements_attribute():
-    node = _parse(
+def test_with_requirements_attribute(parse):
+    node = parse(
         """
         with a as b.c:
             pass
         """
     )
-    assert _dep_names(node) == ["a", "b"]
+    assert _dep_names(node) == {"a", "b"}
 
 
-def test_with_requirements_bindings():
-    node = _parse(
+def test_with_requirements_bindings(parse):
+    node = parse(
         """
         with chdir(os.path.dirname(path)):
             requirements = parse_requirements(path)
@@ -555,43 +543,43 @@ def test_with_requirements_bindings():
                     results.append(req.name)
         """
     )
-    assert _dep_names(node) == [
+    assert _dep_names(node) == {
         "chdir",
         "os",
         "path",
         "parse_requirements",
         "path",
         "results",
-    ]
+    }
 
 
-def test_async_with_requirements():
+def test_async_with_requirements(parse):
     """
     ..code:: python
 
         AsyncWith(withitem* items, stmt* body, string? type_comment)
     """
-    node = _parse(
+    node = parse(
         """
         async with A() as a:
             a()
             b()
         """
     )
-    assert _dep_names(node) == ["A", "b"]
+    assert _dep_names(node) == {"A", "b"}
 
 
-def test_raise_requirements():
+def test_raise_requirements(parse):
     """
     ..code:: python
 
         Raise(expr? exc, expr? cause)
     """
-    node = _parse("raise Exception(message)")
-    assert _dep_names(node) == ["Exception", "message"]
+    node = parse("raise Exception(message)")
+    assert _dep_names(node) == {"Exception", "message"}
 
 
-def test_try_requirements():
+def test_try_requirements(parse):
     """
     ..code:: python
 
@@ -602,7 +590,7 @@ def test_try_requirements():
             stmt* finalbody,
         )
     """
-    node = _parse(
+    node = parse(
         """
         try:
             a = something_stupid()
@@ -614,16 +602,16 @@ def test_try_requirements():
             d = finish()
         """
     )
-    assert _dep_names(node) == [
+    assert _dep_names(node) == {
         "something_stupid",
         "Exception",
         "recover",
         "otherwise",
         "finish",
-    ]
+    }
 
 
-def test_assert_requirements():
+def test_assert_requirements(parse):
     """
     ..code:: python
 
@@ -633,7 +621,7 @@ def test_assert_requirements():
     pass
 
 
-def test_import_requirements():
+def test_import_requirements(parse):
     """
     ..code:: python
 
@@ -642,7 +630,7 @@ def test_import_requirements():
     pass
 
 
-def test_import_from_requirements():
+def test_import_from_requirements(parse):
     """
     ..code:: python
 
@@ -652,7 +640,7 @@ def test_import_from_requirements():
     pass
 
 
-def test_global_requirements():
+def test_global_requirements(parse):
     """
     ..code:: python
 
@@ -661,7 +649,7 @@ def test_global_requirements():
     pass
 
 
-def test_non_local_requirements():
+def test_non_local_requirements(parse):
     """
     ..code:: python
 
@@ -670,7 +658,7 @@ def test_non_local_requirements():
     pass
 
 
-def test_expr_requirements():
+def test_expr_requirements(parse):
     """
     ..code:: python
 
@@ -679,17 +667,17 @@ def test_expr_requirements():
     pass
 
 
-def test_control_flow_requirements():
+def test_control_flow_requirements(parse):
     """
     ..code:: python
 
         Pass | Break | Continue
 
     """
-    return []
+    pass
 
 
-def test_bool_op_requirements():
+def test_bool_op_requirements(parse):
     """
     ..code:: python
 
@@ -700,57 +688,57 @@ def test_bool_op_requirements():
     pass
 
 
-def test_named_expr_requirements():
+def test_named_expr_requirements(parse):
     """
     ..code:: python
 
         NamedExpr(expr target, expr value)
     """
-    node = _parse("(a := b)")
-    assert _dep_names(node) == ["b"]
+    node = parse("(a := b)")
+    assert _dep_names(node) == {"b"}
 
 
-def test_bin_op_requirements():
+def test_bin_op_requirements(parse):
     """
     ..code:: python
 
         BinOp(expr left, operator op, expr right)
     """
-    node = _parse("a + b")
-    assert _dep_names(node) == ["a", "b"]
+    node = parse("a + b")
+    assert _dep_names(node) == {"a", "b"}
 
 
-def test_unary_op_requirements():
+def test_unary_op_requirements(parse):
     """
     ..code:: python
 
         UnaryOp(unaryop op, expr operand)
     """
-    node = _parse("-plus")
-    assert _dep_names(node) == ["plus"]
+    node = parse("-plus")
+    assert _dep_names(node) == {"plus"}
 
 
-def test_lambda_requirements():
+def test_lambda_requirements(parse):
     """
     ..code:: python
 
         Lambda(arguments args, expr body)
     """
-    node = _parse("lambda arg, *args, **kwargs: arg + other(*args) / kwargs")
-    assert _dep_names(node) == ["other"]
+    node = parse("lambda arg, *args, **kwargs: arg + other(*args) / kwargs")
+    assert _dep_names(node) == {"other"}
 
 
-def test_lambda_requirements_default():
-    node = _parse("lambda a=b: a")
-    assert _dep_names(node) == ["b"]
+def test_lambda_requirements_default(parse):
+    node = parse("lambda a=b: a")
+    assert _dep_names(node) == {"b"}
 
 
-def test_lambda_requirements_walrus_operator():
-    node = _parse("lambda: (a := 1) + a")
-    assert _dep_names(node) == []
+def test_lambda_requirements_walrus_operator(parse):
+    node = parse("lambda: (a := 1) + a")
+    assert _dep_names(node) == set()
 
 
-def test_if_exp_requirements():
+def test_if_exp_requirements(parse):
     """
     ..code:: python
 
@@ -759,27 +747,27 @@ def test_if_exp_requirements():
     pass
 
 
-def test_dict_requirements():
+def test_dict_requirements(parse):
     """
     ..code:: python
 
         Dict(expr* keys, expr* values)
     """
-    node = _parse("{key: value}")
-    assert _dep_names(node) == ["key", "value"]
+    node = parse("{key: value}")
+    assert _dep_names(node) == {"key", "value"}
 
 
-def test_dict_requirements_empty():
-    node = _parse("{}")
-    assert _dep_names(node) == []
+def test_dict_requirements_empty(parse):
+    node = parse("{}")
+    assert _dep_names(node) == set()
 
 
-def test_dict_requirements_unpack():
-    node = _parse("{**values}")
-    assert _dep_names(node) == ["values"]
+def test_dict_requirements_unpack(parse):
+    node = parse("{**values}")
+    assert _dep_names(node) == {"values"}
 
 
-def test_set_requirements():
+def test_set_requirements(parse):
     """
     ..code:: python
 
@@ -788,33 +776,33 @@ def test_set_requirements():
     pass
 
 
-def test_list_comp_requirements():
+def test_list_comp_requirements(parse):
     """
     ..code:: python
 
         ListComp(expr elt, comprehension* generators)
     """
-    node = _parse("[action(a) for a in iterator]")
-    assert _dep_names(node) == ["action", "iterator"]
+    node = parse("[action(a) for a in iterator]")
+    assert _dep_names(node) == {"action", "iterator"}
 
 
-def test_set_comp_requirements():
+def test_set_comp_requirements(parse):
     """
     ..code:: python
 
         SetComp(expr elt, comprehension* generators)
     """
-    node = _parse("{action(a) for a in iterator}")
-    assert _dep_names(node) == ["action", "iterator"]
+    node = parse("{action(a) for a in iterator}")
+    assert _dep_names(node) == {"action", "iterator"}
 
 
-def test_dict_comp_requirements():
+def test_dict_comp_requirements(parse):
     """
     ..code:: python
 
         DictComp(expr key, expr value, comprehension* generators)
     """
-    node = _parse(
+    node = parse(
         """
         {
             process_key(key): process_value(value)
@@ -822,10 +810,10 @@ def test_dict_comp_requirements():
         }
         """
     )
-    assert _dep_names(node) == ["process_key", "process_value", "iterator"]
+    assert _dep_names(node) == {"process_key", "process_value", "iterator"}
 
 
-def test_generator_exp_requirements():
+def test_generator_exp_requirements(parse):
     """
     ..code:: python
 
@@ -834,7 +822,7 @@ def test_generator_exp_requirements():
     pass
 
 
-def test_await_requirements():
+def test_await_requirements(parse):
     """
     ..code:: python
 
@@ -844,7 +832,7 @@ def test_await_requirements():
     pass
 
 
-def test_yield_requirements():
+def test_yield_requirements(parse):
     """
     ..code:: python
 
@@ -853,7 +841,7 @@ def test_yield_requirements():
     pass
 
 
-def test_yield_from_requirements():
+def test_yield_from_requirements(parse):
     """
     ..code:: python
 
@@ -862,7 +850,7 @@ def test_yield_from_requirements():
     pass
 
 
-def test_compare_requirements():
+def test_compare_requirements(parse):
     """
     ..code:: python
 
@@ -873,63 +861,52 @@ def test_compare_requirements():
     pass
 
 
-def test_call_requirements():
+def test_call_requirements(parse):
     """
     ..code:: python
 
         Call(expr func, expr* args, keyword* keywords)
     """
-    node = _parse("function(1, arg_value, kwarg=kwarg_value, kwarg_2=2)")
-    assert _dep_names(node) == [
-        "function",
-        "arg_value",
-        "kwarg_value",
-    ]
+    node = parse("function(1, arg_value, kwarg=kwarg_value, kwarg_2=2)")
+    assert _dep_names(node) == {"function", "arg_value", "kwarg_value"}
 
 
-def test_call_requirements_arg_unpacking():
-    node = _parse("function(*args)")
-    assert _dep_names(node) == ["function", "args"]
+def test_call_requirements_arg_unpacking(parse):
+    node = parse("function(*args)")
+    assert _dep_names(node) == {"function", "args"}
 
 
-def test_call_requirements_kwarg_unpacking():
-    node = _parse("function(*kwargs)")
-    assert _dep_names(node) == [
-        "function",
-        "kwargs",
-    ]
+def test_call_requirements_kwarg_unpacking(parse):
+    node = parse("function(*kwargs)")
+    assert _dep_names(node) == {"function", "kwargs"}
 
 
-def test_method_call_requirements():
-    node = _parse("obj.method(arg_value, kwarg=kwarg_value)")
-    assert _dep_names(node) == [
-        "obj",
-        "arg_value",
-        "kwarg_value",
-    ]
+def test_method_call_requirements(parse):
+    node = parse("obj.method(arg_value, kwarg=kwarg_value)")
+    assert _dep_names(node) == {"obj", "arg_value", "kwarg_value"}
 
 
-def test_formatted_value_requirements():
+def test_formatted_value_requirements(parse):
     """
     ..code:: python
 
         FormattedValue(expr value, int? conversion, expr? format_spec)
     """
-    node = _parse("f'{a} {b} {c}'")
-    assert _dep_names(node) == ["a", "b", "c"]
+    node = parse("f'{a} {b} {c}'")
+    assert _dep_names(node) == {"a", "b", "c"}
 
 
-def test_formatted_value_requirements_format_spec():
-    node = _parse("f'{a} {b:{c}} {d}'")
-    assert _dep_names(node) == ["a", "b", "c", "d"]
+def test_formatted_value_requirements_format_spec(parse):
+    node = parse("f'{a} {b:{c}} {d}'")
+    assert _dep_names(node) == {"a", "b", "c", "d"}
 
 
-def test_formatted_value_requirements_format_spec_walrus():
-    node = _parse("f'{a} {b:{(c := 1)}} {d}'")
-    assert _dep_names(node) == ["a", "b", "d"]
+def test_formatted_value_requirements_format_spec_walrus(parse):
+    node = parse("f'{a} {b:{(c := 1)}} {d}'")
+    assert _dep_names(node) == {"a", "b", "d"}
 
 
-def test_joined_str_requirements():
+def test_joined_str_requirements(parse):
     """
     ..code:: python
 
@@ -938,7 +915,7 @@ def test_joined_str_requirements():
     pass
 
 
-def test_constant_requirements():
+def test_constant_requirements(parse):
     """
     ..code:: python
 
@@ -947,48 +924,48 @@ def test_constant_requirements():
     pass
 
 
-def test_attribute_requirements():
+def test_attribute_requirements(parse):
     """
     ..code:: python
 
         # the following expression can appear in assignment context
         Attribute(expr value, identifier attr, expr_context ctx)
     """
-    node = _parse("obj.attr.method()")
-    assert _dep_names(node) == ["obj"]
+    node = parse("obj.attr.method()")
+    assert _dep_names(node) == {"obj"}
 
 
-def test_subscript_requirements():
+def test_subscript_requirements(parse):
     """
     ..code:: python
 
         Subscript(expr value, expr slice, expr_context ctx)
     """
-    node = _parse("array[key]")
-    assert _dep_names(node) == ["array", "key"]
+    node = parse("array[key]")
+    assert _dep_names(node) == {"array", "key"}
 
 
-def test_subscript_requirements_slice():
-    node = _parse("array[start:end]")
-    assert _dep_names(node) == ["array", "start", "end"]
+def test_subscript_requirements_slice(parse):
+    node = parse("array[start:end]")
+    assert _dep_names(node) == {"array", "start", "end"}
 
 
-def test_subscript_requirements_slice_end():
-    node = _parse("array[:end]")
-    assert _dep_names(node) == ["array", "end"]
+def test_subscript_requirements_slice_end(parse):
+    node = parse("array[:end]")
+    assert _dep_names(node) == {"array", "end"}
 
 
-def test_subscript_requirements_slice_start():
-    node = _parse("array[start:]")
-    assert _dep_names(node) == ["array", "start"]
+def test_subscript_requirements_slice_start(parse):
+    node = parse("array[start:]")
+    assert _dep_names(node) == {"array", "start"}
 
 
-def test_subscript_requirements_slice_all():
-    node = _parse("array[:]")
-    assert _dep_names(node) == ["array"]
+def test_subscript_requirements_slice_all(parse):
+    node = parse("array[:]")
+    assert _dep_names(node) == {"array"}
 
 
-def test_starred_requirements():
+def test_starred_requirements(parse):
     """
     ..code:: python
 
@@ -998,17 +975,17 @@ def test_starred_requirements():
     pass
 
 
-def test_name_requirements():
+def test_name_requirements(parse):
     """
     ..code:: python
 
         Name(identifier id, expr_context ctx)
     """
-    node = _parse("name")
-    assert _dep_names(node) == ["name"]
+    node = parse("name")
+    assert _dep_names(node) == {"name"}
 
 
-def test_list_requirements():
+def test_list_requirements(parse):
     """
     ..code:: python
 
@@ -1017,23 +994,23 @@ def test_list_requirements():
     pass
 
 
-def test_tuple_requirements():
+def test_tuple_requirements(parse):
     """
     ..code:: python
 
         Tuple(expr* elts, expr_context ctx)
 
     """
-    node = _parse("(a, b, 3)")
-    assert _dep_names(node) == ["a", "b"]
+    node = parse("(a, b, 3)")
+    assert _dep_names(node) == {"a", "b"}
 
 
-def test_tuple_requirements_star_unpacking():
-    node = _parse("(a, *b)")
-    assert _dep_names(node) == ["a", "b"]
+def test_tuple_requirements_star_unpacking(parse):
+    node = parse("(a, *b)")
+    assert _dep_names(node) == {"a", "b"}
 
 
-def test_slice_requirements():
+def test_slice_requirements(parse):
     """
     ..code:: python
 
@@ -1045,127 +1022,127 @@ def test_slice_requirements():
 
 
 @match_statement
-def test_match_statement_requirements_literal():
-    node = _parse(
+def test_match_statement_requirements_literal(parse):
+    node = parse(
         """
         match a:
             case True:
                 pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
 @match_statement
-def test_match_statement_requirements_capture():
-    node = _parse(
+def test_match_statement_requirements_capture(parse):
+    node = parse(
         """
         match a:
             case b:
                 pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
 @match_statement
-def test_match_statement_requirements_wildcard():
-    node = _parse(
+def test_match_statement_requirements_wildcard(parse):
+    node = parse(
         """
         match a:
             case _:
                 pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
 @match_statement
-def test_match_statement_requirements_constant():
-    node = _parse(
+def test_match_statement_requirements_constant(parse):
+    node = parse(
         """
         match a:
             case 1:
                 pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
 @match_statement
-def test_match_statement_requirements_named_constant():
-    node = _parse(
+def test_match_statement_requirements_named_constant(parse):
+    node = parse(
         """
         match a:
             case MyEnum.CONSTANT:
                 pass
         """
     )
-    assert _dep_names(node) == ["a", "MyEnum"]
+    assert _dep_names(node) == {"a", "MyEnum"}
 
 
 @match_statement
-def test_match_statement_requirements_sequence():
-    node = _parse(
+def test_match_statement_requirements_sequence(parse):
+    node = parse(
         """
         match a:
             case [b, *c, d, _]:
                 pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
 @match_statement
-def test_match_statement_requirements_mapping():
-    node = _parse(
+def test_match_statement_requirements_mapping(parse):
+    node = parse(
         """
         match a:
             case {"k1": "v1", "k2": b, "k3": _, **c}:
                 pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
 @match_statement
-def test_match_statement_requirements_class():
-    node = _parse(
+def test_match_statement_requirements_class(parse):
+    node = parse(
         """
         match a:
             case MyClass(0, b, x=_, y=c):
                 pass
         """
     )
-    assert _dep_names(node) == ["a", "MyClass"]
+    assert _dep_names(node) == {"a", "MyClass"}
 
 
 @match_statement
-def test_match_statement_requirements_or():
-    node = _parse(
+def test_match_statement_requirements_or(parse):
+    node = parse(
         """
         match a:
             case b | c:
                 pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
 @match_statement
-def test_match_statement_requirements_as():
-    node = _parse(
+def test_match_statement_requirements_as(parse):
+    node = parse(
         """
         match a:
             case b as c:
                 pass
         """
     )
-    assert _dep_names(node) == ["a"]
+    assert _dep_names(node) == {"a"}
 
 
 @exception_group
-def test_try_star_requirements():
+def test_try_star_requirements(parse):
     """
     ..code:: python
 
@@ -1176,7 +1153,7 @@ def test_try_star_requirements():
             stmt* finalbody,
         )
     """
-    node = _parse(
+    node = parse(
         """
         try:
             a = something_stupid()
@@ -1188,10 +1165,10 @@ def test_try_star_requirements():
             d = finish()
         """
     )
-    assert _dep_names(node) == [
+    assert _dep_names(node) == {
         "something_stupid",
         "ExceptionGroup",
         "recover",
         "otherwise",
         "finish",
-    ]
+    }
