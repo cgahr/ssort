@@ -23,7 +23,7 @@ class SelfAccesses(ast.NodeVisitor):
 
 class MethodRequirements(ast.NodeVisitor):
     def __init__(self) -> None:
-        self.stack: list[str] = []
+        self.stack: set[str] = set()
 
     def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef):
         if not node.args.args:
@@ -33,7 +33,7 @@ class MethodRequirements(ast.NodeVisitor):
 
         self_access = SelfAccesses(self_arg)
         self_access.visit(node)
-        self.stack.extend(self_access.stack)
+        self.stack |= set(self_access.stack)
 
     visit_AsyncFunctionDef = visit_FunctionDef
 
@@ -41,4 +41,4 @@ class MethodRequirements(ast.NodeVisitor):
 def get_method_requirements(node: ast.AST):
     method_requirements = MethodRequirements()
     method_requirements.visit(node)
-    yield from method_requirements.stack
+    return method_requirements.stack
