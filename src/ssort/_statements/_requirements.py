@@ -3,11 +3,9 @@ from __future__ import annotations
 import ast
 import dataclasses
 import enum
-from typing import Sequence
 
-from ssort._bindings import get_bindings
-from ssort._builtins import CLASS_BUILTINS
-
+from .._builtins import CLASS_BUILTINS
+from ._bindings import get_bindings
 from ._node_visitor import SmartNodeVisitor
 
 __all__ = ["get_requirements", "Requirement"]

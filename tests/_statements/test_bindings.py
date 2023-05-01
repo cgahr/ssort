@@ -4,7 +4,7 @@ import textwrap
 
 import pytest
 
-from ssort._bindings import get_bindings
+from ssort._statements._bindings import get_bindings
 
 # Most walrus operator syntax is valid in 3.8. Only use this decorator for the
 # rare cases where it is not.

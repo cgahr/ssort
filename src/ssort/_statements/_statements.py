@@ -4,9 +4,9 @@ import ast
 import functools
 from typing import Any, Callable, Iterable, TypeVar
 
-from ssort._bindings import get_bindings
-from ssort._method_requirements import get_method_requirements
-from ssort._requirements import Requirement, get_requirements
+from ._bindings import get_bindings
+from ._method_requirements import get_method_requirements
+from ._requirements import Requirement, get_requirements
 
 _T = TypeVar("_T")
 

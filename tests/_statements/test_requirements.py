@@ -4,7 +4,7 @@ import textwrap
 
 import pytest
 
-from ssort._requirements import get_requirements
+from ssort._statements._requirements import get_requirements
 
 match_statement = pytest.mark.skipif(
     sys.version_info < (3, 10),
