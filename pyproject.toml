@@ -87,3 +87,18 @@ extend_skip = [
     "__pycache__",
     "test_data"
 ]
+skip_glob = [
+    "_statements/_bindings.py",
+    "_statements/_method_requirements.py",
+    "_statements/_requirements.py"
+]
+
+[tool.tomlsort]
+all = true
+in_place = true
+spaces_before_inline_comment = 2
+spaces_indent_inline_array = 4
+
+[tool.tomlsort.overrides]
+"project.classifiers".inline_arrays = false
+"tool.ruff.select".inline_arrays = false
